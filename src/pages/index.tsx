@@ -5,13 +5,13 @@ import Image from "next/image";
 import { RouterOutputs, api } from "~/utils/api";
 import dayjs from "dayjs"
 import relativeTime from "dayjs/plugin/relativeTime";
+import { LoadingPage } from "~/components/loading";
 
 dayjs.extend(relativeTime)
 
 const CreatePostWizard = () => {
   const { user } = useUser();
 
-  console.log(user)
 
   if (!user) return null;
 
@@ -47,21 +47,36 @@ const PostView = (props: PostWithUser) => {
           <span className="font-thin">{` · ${dayjs(post.createdAt).fromNow()}`}</span>
         </div>
         <span>{post.content}</span>
-
       </div>
     </div>
   )
 }
 
-export default function Home() {
+const Feed = () => {
+  const { data, isLoading: postsLoading } = api.post.getAll.useQuery();;
 
-  const user = useUser();
-
-  const { data, isLoading } = api.post.getAll.useQuery();
-
-  if(isLoading) return <div>loading</div>
+  if(postsLoading) return <LoadingPage />
 
   if(!data) return <div>Something went wrong</div>
+
+  return (
+    <div className="flex flex-col">
+      {data?.map((fullpost) => (
+        <PostView {...fullpost} key={fullpost.post.id} />
+      ))}
+    </div>
+  )
+
+}
+
+export default function Home() {
+
+  const { isLoaded: userLoaded, isSignedIn } = useUser();
+
+  //start fetching asap
+  api.post.getAll.useQuery();
+
+  if(!userLoaded) return <div />
 
   return (
     <>
@@ -73,14 +88,10 @@ export default function Home() {
       <main className="flex h-screen justify-center">
         <div className="w-full border-x border-slate-400 md:max-w-2xl">
           <div className="border-b border-slate-400 p-4" >
-            {!user.isSignedIn && <div className="flex justify-center"><SignInButton /></div>}
-            {user.isSignedIn && <CreatePostWizard />}
+            {!isSignedIn && <div className="flex justify-center"><SignInButton /></div>}
+            {isSignedIn && <CreatePostWizard />}
           </div>
-          <div className="flex flex-col">
-            {data?.map((fullpost) => (
-              <PostView {...fullpost} key={fullpost.post.id} />
-            ))}
-          </div>
+          <Feed />
         </div>
       </main>
     </>
