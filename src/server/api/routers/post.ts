@@ -1,4 +1,4 @@
-import { User, clerkClient } from "@clerk/nextjs/server";
+import { clerkClient } from "@clerk/nextjs/server";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
@@ -6,38 +6,18 @@ import { createTRPCRouter, privateProcedure, publicProcedure } from "~/server/ap
 
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { filterUserForClient } from "~/server/helpers/filterUserForClient";
 
-const filterUserForClient = (user: User) => {
-  return { id: user.id, username: user.username, profilePicture: user.imageUrl }
-}
 
+//upstash for rate limiting
 const ratelimit = new Ratelimit({
   redis: Redis.fromEnv(),
   limiter: Ratelimit.slidingWindow(3, "1 m"),
   analytics: true,
-  /**
-   * Optional prefix for the keys used in redis. This is useful if you want to share a redis
-   * instance with other applications and want to avoid key collisions. The default prefix is
-   * "@upstash/ratelimit"
-   */ 
   prefix: "@upstash/ratelimit",
 });
 
 export const postRouter = createTRPCRouter({
-  hello: publicProcedure
-    .input(z.object({ text: z.string() }))
-    .query(({ input }) => {
-      return {
-        greeting: `Hello ${input.text}`,
-      };
-    }),
-
-  getLatest: publicProcedure.query(({ ctx }) => {
-    return ctx.db.post.findFirst({
-      orderBy: { createdAt: "desc" },
-    });
-  }),
-
   getAll: publicProcedure.query(async ({ ctx }) => {
     const posts = await ctx.db.post.findMany({
       take: 100,
